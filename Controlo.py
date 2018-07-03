@@ -18,7 +18,7 @@ class Controlo :
 		#self.VEL_MAX_ANG=0.75
 		#to simulation
 		self.VEL_MAX= 0.4
-		self.VEL_MAX_ANG=0.3
+		self.VEL_MAX_ANG=0.2
 		self.lex= 0
 		self.ley= 0
 		self.mId= 0
@@ -170,7 +170,7 @@ class Controlo :
 			#muito Orientado
 			a = max ([mz, z])
 			b = min ([mz, z])
-			if (int (mz) == int (z)or (a -b <3)):
+			if (int (mz) == int (z)or (a -b <15)):
                         	return 0,0
 
 			if ((z-mz)>= 0):
@@ -179,7 +179,7 @@ class Controlo :
 				else:
 					return self.walkright()
 			else:
-				if (z-mz)< 180:
+				if (z-mz)> 180:#mudança punk
 					return self.walkright()
 				else:
 					return self.walkleft()
