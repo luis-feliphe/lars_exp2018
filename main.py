@@ -29,10 +29,11 @@ getTime = lambda: int(round(time.time() * 1000))
 import math
 RATE=6
 
-
 global posicao
 posicao = None
 
+global distancia
+distancia = None
 
 def degrees(value):
 	return (value*180)/math.pi#math.degrees(value)#((value* 180.0)/math.pi)
@@ -42,9 +43,8 @@ def getpos(odom):
 
 def getDistance(scan):
 	global distancia 
-	distancia = scan
-def calculaDistancia (scan):
-	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(min(remove_fromList(var.ranges, 5.0)))
+	distancia = min ( scan.ranges)
+#	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(min(remove_fromList(var.ranges, 5.0)))
 
 def hasDataToWalk():
 	global posicao
@@ -93,7 +93,9 @@ u = 1.5
 #################
 #   Main Loop   #
 #################
-points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
+points = [(2,2,90), (0,2,0)]
+#points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
+
 #points = [(0, -u)]
 cont = 0
 posInicialx=0
@@ -111,6 +113,13 @@ try:
 	algoritmo = Controlo()
 	while not rospy.is_shutdown():
 		if hasDataToWalk():
+			global distancia
+			if (distancia != None and distancia < 2.5 and distancia > 0.1):
+				print "Obstáculo detectado " + str(distancia)
+				t.angular.z = 0
+				t.linear.x = 0
+				p.publish(t)
+				continue
 			x, y , mx, my, mz = getDataFromRos()
 			t= Twist()
 			x, y, z = points[cont]
