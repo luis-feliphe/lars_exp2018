@@ -28,7 +28,7 @@ from sensor_msgs.msg import LaserScan
 getTime = lambda: int(round(time.time() * 1000))
 
 import math
-RATE=6
+RATE=1
 
 global posicao
 posicao = None
@@ -44,43 +44,67 @@ def get_pos(odom):
 	posicao= odom
 
 def get_size (vector, menor_distancia):
+	ANGLE = 0.00171110546216
         number_elements =  len (vector)
-        margin = numpy.mean (vector)/2
+        margin = numpy.std (vector)/2
+#	print ("Margem de : " + str (margin))
         right = 0
         left = 0
+	cont = 0
         previous = vector[len(vector)/2]
         for i in range(len (vector)/2, number_elements):
-#               print ("visitando : " + str(vector[i]))
-                if max(vector[i] ,previous) - min (vector[i] ,previous) > margin:
-#                       print ("Parou em : " + str(vector[i]))
-                        break
-                right+=1
-                previous = vector[i]
+#		print ("visitando : " + str(vector[i]))
+		if max(vector[i] ,previous) - min (vector[i] ,previous) > margin:
+			if cont > 1:
+#				print ("Parou em : " + str(vector[i]))
+				right = right -1
+				break
+			else:
+				cont+=1
+	                	right+=1
+		else:
+	                right+=1
+	                previous = vector[i]
+			cont = 0
         tmp =[]
         for i in  reversed (vector):
                 tmp.append(i)
         for i in range(len (vector)/2+1, number_elements):
-#               print ("visitando : " + str(tmp[i]))
+#		print ("visitando : " + str(tmp[i]))
                 if (max(tmp[i] ,previous) - min (tmp[i] ,previous)) > margin:
-#                       print ("Parou em : " + str(tmp[i]))
-                        break
-                left+=1
-                previous = tmp[i]
-#        print str (left) +"+"+ str(right) +"="+str(left+right)
-        left = math.tan(left *0.0016) * menor_distancia
-        right = math.tan(right * 0.0016) * menor_distancia
+			if cont > 1:
+#				print ("Parou em : " + str(vector[i]))
+				left= left -1
+				break
+			else:
+				cont+=1
+	                	left+=1
+		else:
+	                left+=1
+	                previous = tmp[i]
+			cont = 0
+
+#print "Numero de angulos visitados : "+ str (left) +"+"+ str(right) +"="+str(left+right)
+#print "Angulos : "+ str (math.degrees (left*ANGLE)) +"+"+ str(math.degrees(right*ANGLE)) +"="+str(math.degrees ((left*ANGLE)+ (right*ANGLE)))
+        left = math.tan(left *ANGLE) * menor_distancia
+        right = math.tan(right * ANGLE) * menor_distancia
 
 
-        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)
+        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)+ "\n"
 
 
 
 def get_distance(scan):
 	global distancia 
-	distancia = min ( scan.ranges)
-	print "\n\n" + str (scan.ranges)
+	distancia = list (scan.ranges)
+	for n, i in enumerate (distancia):
+		if math.isnan(i):
+			distancia[n] = 3
+	for i in range (0,len(distancia)):
+		distancia[i] = round (distancia[i] * 100,1)
+#	print "\n\n" + str (scan.ranges)
 #	print "Angulo inicial  " + str(scan.angle_min) + " Angulo final " + str(scan.angle_max) + " intervalo de  "+ str(scan.angle_increment) + "Tamanho " + str (len (scan.ranges))
-#	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(min(remove_fromList(var.ranges, 5.0)))
+#	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(distancia)
 
 def hasDataToWalk():
 	global posicao
@@ -149,15 +173,18 @@ try:
 	algoritmo = Controlo()
 	while not rospy.is_shutdown():
 		if hasDataToWalk():
+			t= Twist()
 			global distancia
-			if (distancia != None and distancia < 2.5 and distancia > 0.1):
-				print "Chegamos a caixa com distância de  " + str(distancia)
+#			print "Distancia = > "+ str (min (distancia))
+			if (distancia != None and min (distancia) < 200 and min (distancia)> 25):
+				print "\nChegamos a caixa com distância de  " + str(min (distancia))
+				get_size(distancia, min(distancia))
 				t.angular.z = 0
 				t.linear.x = 0
 				p.publish(t)
 				continue
 			x, y , mx, my, mz = getDataFromRos()
-			t= Twist()
+
 			x, y, z = points[cont]
 			lin,ang  = algoritmo.start(x, y, z, mx, my, mz)
 			if (lin == 0 and ang == 0):
@@ -169,7 +196,8 @@ try:
 			global saida
 			t.angular.z = ang
 			t.linear.x = lin
-			p.publish(t)
+			print "andando"
+#			p.publish(t)
 		r.sleep()
 
 except Exception :
