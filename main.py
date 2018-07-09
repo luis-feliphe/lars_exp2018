@@ -19,6 +19,7 @@ import sys
 import time
 import datetime
 ####
+import numpy
 from tf.transformations import euler_from_quaternion
 import tf
 import struct
@@ -37,13 +38,48 @@ distancia = None
 
 def degrees(value):
 	return (value*180)/math.pi#math.degrees(value)#((value* 180.0)/math.pi)
-def getpos(odom):
+
+def get_pos(odom):
 	global posicao
 	posicao= odom
 
-def getDistance(scan):
+def get_size (vector, menor_distancia):
+        number_elements =  len (vector)
+        margin = numpy.mean (vector)/2
+        right = 0
+        left = 0
+        previous = vector[len(vector)/2]
+        for i in range(len (vector)/2, number_elements):
+#               print ("visitando : " + str(vector[i]))
+                if max(vector[i] ,previous) - min (vector[i] ,previous) > margin:
+#                       print ("Parou em : " + str(vector[i]))
+                        break
+                right+=1
+                previous = vector[i]
+        tmp =[]
+        for i in  reversed (vector):
+                tmp.append(i)
+        for i in range(len (vector)/2+1, number_elements):
+#               print ("visitando : " + str(tmp[i]))
+                if (max(tmp[i] ,previous) - min (tmp[i] ,previous)) > margin:
+#                       print ("Parou em : " + str(tmp[i]))
+                        break
+                left+=1
+                previous = tmp[i]
+#        print str (left) +"+"+ str(right) +"="+str(left+right)
+        left = math.tan(left *0.0016) * menor_distancia
+        right = math.tan(right * 0.0016) * menor_distancia
+
+
+        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)
+
+
+
+def get_distance(scan):
 	global distancia 
 	distancia = min ( scan.ranges)
+	print "\n\n" + str (scan.ranges)
+#	print "Angulo inicial  " + str(scan.angle_min) + " Angulo final " + str(scan.angle_max) + " intervalo de  "+ str(scan.angle_increment) + "Tamanho " + str (len (scan.ranges))
 #	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(min(remove_fromList(var.ranges, 5.0)))
 
 def hasDataToWalk():
@@ -81,8 +117,8 @@ global myId
 myId = 1
 
 rospy.init_node("controle_robo_myId")
-rospy.Subscriber("/odom", Odometry, getpos)
-rospy.Subscriber("/scan", LaserScan, getDistance)
+rospy.Subscriber("/odom", Odometry, get_pos)
+rospy.Subscriber("/scan", LaserScan, get_distance)
 p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
 
 r = rospy.Rate(RATE) # 5hz
@@ -115,7 +151,7 @@ try:
 		if hasDataToWalk():
 			global distancia
 			if (distancia != None and distancia < 2.5 and distancia > 0.1):
-				print "Obstáculo detectado " + str(distancia)
+				print "Chegamos a caixa com distância de  " + str(distancia)
 				t.angular.z = 0
 				t.linear.x = 0
 				p.publish(t)
