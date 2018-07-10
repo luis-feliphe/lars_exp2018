@@ -141,7 +141,7 @@ class Controlo :
 							return self.walkonantihorario()
 
 			#Não está orientado, com distancia curta TODO provavelmente elif ou if nao faz diferenca nesse caso por causa do return
-			if hip < 1.5:
+			if hip < 2:
 			        if ((ang - mz) >= 0):
 					if ((ang- mz) < 180):
 						return self.walkantihorario()

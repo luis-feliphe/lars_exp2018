@@ -139,7 +139,8 @@ def goto(value):
 		orientation, x,y,z = str(value.data).split(":")
 		x_r = float (x)
 		y_r = float (y)
-		distance = 1
+		z_r = float (z)
+		distance = 0.50
 		if orientation == "n":
 			x_r += distance
 		elif orientation == "s":
@@ -233,7 +234,8 @@ else:
 				global distancia
 				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
 					#print "Chegamos a caixa com distância de  " + str(distancia)
-					resp = "n:1:1:1"
+					x, y , mx, my, mz = getDataFromRos()
+					resp = "s:"+str (mx)+":"+str(my)+":"+str(mz)
 					goto.publish(resp)
 					get_size(distancia, min (distancia))
 					t.angular.z = 0
