@@ -90,7 +90,7 @@ def get_size (vector, menor_distancia):
         right = math.tan(right * ANGLE) * menor_distancia
 
 
-        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)+ "\n"
+#        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)+ "\n"
 
 
 
@@ -124,31 +124,74 @@ def getDegreesFromOdom(w):
 	if current_angle < 0:
 		current_angle = 2 * math.pi + current_angle
 	return degrees(current_angle)
-		
+
+			
 
 def getxy (odom):
 #	return round (odom.pose.pose.position.x), round ( odom.pose.pose.position.y), round (getDegreesFromOdom (odom))#degrees(yall)
 	return odom.pose.pose.position.x,  odom.pose.pose.position.y, getDegreesFromOdom (odom)#degrees(yall)
 
+def goto(value):
+#points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
+	global robot_id
+	if robot_id != 1:
+		print "Indo em direcao ao mestre: " + str (value.data)
+		orientation, x,y,z = str(value.data).split(":")
+		x_r = float (x)
+		y_r = float (y)
+		distance = 1
+		if orientation == "n":
+			x_r += distance
+		elif orientation == "s":
+			x_r += distance
+		elif orientation == "l":
+			y_r -= distance
+		elif orientation == "o":
+			y_r += distance
+		
+		algoritmo = Controlo()
+		while True:
+			if hasDataToWalk():
+				global contPontos
+				global p
+				x, y , mx, my, mz = getDataFromRos()
+				t= Twist()
+				lin,ang  = algoritmo.start(x_r ,y_r , z, mx, my, mz)
+				t.angular.z = ang
+				t.linear.x = lin
+				p.publish(t)
+				if (lin == 0 and ang == 0):
+					break
+
 #############
 # ROS SETUP #
 #############
 #Became a node, using the arg to decide what the number of robot
+global robot_id
 robot_id = sys.argv[1]
 print "ROBOT ID = "+str (robot_id)
+robot_id = int (robot_id)
 
-rospy.init_node("control_r"+str(robot_id))
-#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
-rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
-#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
-rospy.Subscriber("/robot_1/base_scan", LaserScan, get_distance)
-#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
-p = rospy.Publisher("/robot_1/cmd_vel", Twist)
-
-if robot_id == "1":#Im the master
+if robot_id == 2:
+	rospy.init_node("control_r"+str(robot_id))
+	#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
+	rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
+	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
+	rospy.Subscriber("/robot_1/base_scan", LaserScan, get_distance)
+	#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
+	p = rospy.Publisher("/robot_1/cmd_vel", Twist)
+	rospy.Subscriber("/goto", String, goto)
+else: 
+	rospy.init_node("control_r"+str(robot_id))
+	#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
+	rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos)
+	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
+	rospy.Subscriber("/robot_0/base_scan", LaserScan, get_distance)
+	#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
+	global p
+	p = rospy.Publisher("/robot_0/cmd_vel", Twist)
 	goto = rospy.Publisher("/goto", String) #send message to the slave
-else:
-	rospy.Subscriber("/scan", String, goto)
+
 
 
 
@@ -172,12 +215,13 @@ posInicialy=0
 
 
 
-
+r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 
-if robot_id != "1":
+if robot_id != 1:
+	print "Esperando indicacao do mestre"
 	while True:
-		pass
+		r.sleep()
 else:
 
 	try:
@@ -189,6 +233,8 @@ else:
 				global distancia
 				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
 					#print "Chegamos a caixa com distância de  " + str(distancia)
+					resp = "n:1:1:1"
+					goto.publish(resp)
 					get_size(distancia, min (distancia))
 					t.angular.z = 0
 					t.linear.x = 0
