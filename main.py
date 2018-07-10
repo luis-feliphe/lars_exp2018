@@ -134,18 +134,23 @@ def getxy (odom):
 # ROS SETUP #
 #############
 #Became a node, using the arg to decide what the number of robot
-global myId
+robot_id = sys.argv[1]
+print "ROBOT ID = "+str (robot_id)
+
+rospy.init_node("control_r"+str(robot_id))
+#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
+rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
+#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
+rospy.Subscriber("/robot_1/base_scan", LaserScan, get_distance)
+#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
+p = rospy.Publisher("/robot_1/cmd_vel", Twist)
+
+if robot_id == "1":#Im the master
+	goto = rospy.Publisher("/goto", String) #send message to the slave
+else:
+	rospy.Subscriber("/scan", String, goto)
 
 
-
-myId = 1
-
-rospy.init_node("controle_robo_myId")
-rospy.Subscriber("/odom", Odometry, get_pos)
-rospy.Subscriber("/scan", LaserScan, get_distance)
-p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
-
-r = rospy.Rate(RATE) # 5hz
 
 
 u = 1.5
@@ -153,8 +158,9 @@ u = 1.5
 #################
 #   Main Loop   #
 #################
-points = [(2,2,90), (0,2,0)]
-#points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
+#points = [(2,2,90), (0,2,0)]
+points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
+points = [(2, 2, 90), (0.2,2,90)]
 
 #points = [(0, -u)]
 cont = 0
@@ -169,37 +175,39 @@ posInicialy=0
 
 #### Iniciando o loop principal ######
 
-try:
-	algoritmo = Controlo()
-	while not rospy.is_shutdown():
-		if hasDataToWalk():
-			t= Twist()
-			global distancia
-#			print "Distancia = > "+ str (min (distancia))
-			if (distancia != None and min (distancia) < 200 and min (distancia)> 25):
-				print "\nChegamos a caixa com distância de  " + str(min (distancia))
-				get_size(distancia, min(distancia))
-				t.angular.z = 0
-				t.linear.x = 0
+if robot_id != "1":
+	while True:
+		pass
+else:
+
+	try:
+		algoritmo = Controlo()
+		print "\n\n\n"
+		while not rospy.is_shutdown():
+			if hasDataToWalk():
+				t= Twist()
+				global distancia
+				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
+					#print "Chegamos a caixa com distância de  " + str(distancia)
+					get_size(distancia, min (distancia))
+					t.angular.z = 0
+					t.linear.x = 0
+					p.publish(t)
+					continue
+				x, y , mx, my, mz = getDataFromRos()
+				x, y, z = points[cont]
+				lin,ang  = algoritmo.start(x, y, z, mx, my, mz)
+				if (lin == 0 and ang == 0):
+					cont= (cont + 1)%len (points)
+					print ("Chegamos ao ponto " + str (cont) )
+					if (cont == 0):
+						print "CHEGAMOS NO PONTO FINAL"
+						
+				global saida
+				t.angular.z = ang
+				t.linear.x = lin
 				p.publish(t)
-				continue
-			x, y , mx, my, mz = getDataFromRos()
 
-			x, y, z = points[cont]
-			lin,ang  = algoritmo.start(x, y, z, mx, my, mz)
-			if (lin == 0 and ang == 0):
-				cont= (cont + 1)%len (points)
-				print ("Chegamos ao ponto " + str (cont) )
-				if (cont == 0):
-					print "CHEGAMOS NO PONTO FINAL"
-					
-			global saida
-			t.angular.z = ang
-			t.linear.x = lin
-			print "andando"
-#			p.publish(t)
-		r.sleep()
-
-except Exception :
-	raise	
-print ("Exception!\n")
+	except Exception :
+		raise	
+	print ("Exception!\n")
