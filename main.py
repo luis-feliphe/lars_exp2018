@@ -32,12 +32,21 @@ RATE=1
 
 global posicao
 posicao = None
-
+global master
+master = None
 global distancia
 distancia = None
 
 def degrees(value):
 	return (value*180)/math.pi#math.degrees(value)#((value* 180.0)/math.pi)
+def hasMasterPos():
+	global master
+	return master!= None
+
+def get_pos_master (odom):
+	print "RECEBIDA A POSICAO \n"
+	global master
+	master = odom
 
 def get_pos(odom):
 	global posicao
@@ -110,9 +119,14 @@ def hasDataToWalk():
 	global posicao
 	return posicao != None
 
+def getMasterPos():
+	global master
+	return getxy(master)
+	
+
 def getDataFromRos():
 	global posicao
-	x, y, z = 0, 0 ,0
+	x, y, z = 0,0,0
 	mx, my, mz = getxy (posicao)
 	return x, y , mx, my, mz
 
@@ -135,12 +149,18 @@ def goto(value):
 #points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
 	global robot_id
 	if robot_id != 1:
-		print "Indo em direcao ao mestre: " + str (value.data)
-		orientation, x,y,z = str(value.data).split(":")
-		x_r = float (x)
-		y_r = float (y)
-		z_r = float (z)
-		distance = 0.50
+		while True:
+			if hasMasterPos():
+				break
+#		orientation, x,y,z = str(value.data).split(":")
+		orientation = str(value.data)
+		
+#		x_r = float (x)
+#		y_r = float (y)
+#		z_r = float (z)
+		if hasMasterPos():
+			x_r, y_r, z_r = getMasterPos()
+		distance = 0.75
 		if orientation == "n":
 			x_r += distance
 		elif orientation == "s":
@@ -151,13 +171,17 @@ def goto(value):
 			y_r += distance
 		
 		algoritmo = Controlo()
+		global master
 		while True:
-			if hasDataToWalk():
+			if hasDataToWalk() and master != None:
 				global contPontos
 				global p
 				x, y , mx, my, mz = getDataFromRos()
+				x_r, y_r, z_r = getMasterPos()
+				x_r -= 0.75
+				y_r -= 0.75
 				t= Twist()
-				lin,ang  = algoritmo.start(x_r ,y_r , z, mx, my, mz)
+				lin,ang  = algoritmo.start(x_r ,y_r , z_r, mx, my, mz)
 				t.angular.z = ang
 				t.linear.x = lin
 				p.publish(t)
@@ -175,6 +199,7 @@ robot_id = int (robot_id)
 
 if robot_id == 2:
 	rospy.init_node("control_r"+str(robot_id))
+	rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos_master)
 	#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
 	rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
 	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
@@ -213,11 +238,13 @@ posInicialy=0
 
 
 
+tarefa = 2 #1 - 1 robô\ 2 - 2 robôs
 
 
 
 r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
+sended = False
 
 if robot_id != 1:
 	print "Esperando indicacao do mestre"
@@ -228,14 +255,19 @@ else:
 	try:
 		algoritmo = Controlo()
 		print "\n\n\n"
+
+			
 		while not rospy.is_shutdown():
 			if hasDataToWalk():
 				t= Twist()
 				global distancia
+				if tarefa == 2 :
+					resp = "s"
+					goto.publish(resp)
 				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
 					#print "Chegamos a caixa com distância de  " + str(distancia)
-					x, y , mx, my, mz = getDataFromRos()
-					resp = "s:"+str (mx)+":"+str(my)+":"+str(mz)
+					#x, y , mx, my, mz = getDataFromRos()
+					resp = "n"
 					goto.publish(resp)
 					get_size(distancia, min (distancia))
 					t.angular.z = 0
