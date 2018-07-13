@@ -44,7 +44,6 @@ def hasMasterPos():
 	return master!= None
 
 def get_pos_master (odom):
-	print "RECEBIDA A POSICAO \n"
 	global master
 	master = odom
 
@@ -97,7 +96,7 @@ def get_size (vector, menor_distancia):
 #print "Angulos : "+ str (math.degrees (left*ANGLE)) +"+"+ str(math.degrees(right*ANGLE)) +"="+str(math.degrees ((left*ANGLE)+ (right*ANGLE)))
         left = math.tan(left *ANGLE) * menor_distancia
         right = math.tan(right * ANGLE) * menor_distancia
-
+	return right + left
 
 #        print "Tamanho do objeto:" + str (left) +"+"+ str(right) +"="+str(left+right)+ "\n"
 
@@ -139,6 +138,16 @@ def getDegreesFromOdom(w):
 		current_angle = 2 * math.pi + current_angle
 	return degrees(current_angle)
 
+def get_answer (resposta):
+	global tarefa
+	global caixa
+	resposta = resposta.data
+	if resposta.count("um")==1:
+		tarefa = 1
+	if resposta.count("dois")==2:
+		tarefa = 2
+	if resposta.count("caixa")==3:
+		caixa = True
 			
 
 def getxy (odom):
@@ -214,9 +223,11 @@ else:
 	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
 	rospy.Subscriber("/robot_0/base_scan", LaserScan, get_distance)
 	#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
+	rospy.Subscriber("/robot_0/answer_deep_learning", String, get_answer)
 	global p
 	p = rospy.Publisher("/robot_0/cmd_vel", Twist)
 	goto = rospy.Publisher("/goto", String) #send message to the slave
+	psound = rospy.Publisher("/mobile_base/commands/sound", Sound) #send message to the slave
 
 
 
@@ -237,14 +248,32 @@ posInicialx=0
 posInicialy=0
 
 
+global tarefa
+tarefa = 3 #1 - 1 robô\ 2 - 2 robôs \ 3 - esperando comand
 
-tarefa = 2 #1 - 1 robô\ 2 - 2 robôs
-
-
+global caixa 
+caixa = False
+contador_imagem = 1
 
 r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 sended = False
+while True:
+	if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
+		print "Detectada imagem com comando"
+		psound.publish (Sound.ON)
+		file_name="imagem"+str(contador_imagem)+".jpg"
+		os.system("python take_photo.py " + str (file_name))
+		os.system("python client.py " + str(file_name))
+		break
+	r.sleep()
+
+
+while tarefa == 3:
+	r.sleep()
+
+psound.publish (Sound.ON)
+
 
 if robot_id != 1:
 	print "Esperando indicacao do mestre"
@@ -254,7 +283,7 @@ else:
 
 	try:
 		algoritmo = Controlo()
-		print "\n\n\n"
+		print "\n"
 
 			
 		while not rospy.is_shutdown():
@@ -265,11 +294,12 @@ else:
 					resp = "s"
 					goto.publish(resp)
 				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
-					#print "Chegamos a caixa com distância de  " + str(distancia)
-					#x, y , mx, my, mz = getDataFromRos()
-					resp = "n"
-					goto.publish(resp)
-					get_size(distancia, min (distancia))
+					tamanho = get_size(distancia, min (distancia))
+					if tamanho > 60:
+						print "TAMANHO = "+str (tamanho)
+						resp = "n"
+						goto.publish(resp)
+						psound.publish (Sound.ON)
 					t.angular.z = 0
 					t.linear.x = 0
 					p.publish(t)
