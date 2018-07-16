@@ -144,13 +144,16 @@ def get_answer (resposta):
 	global tarefa
 	global caixa
 	resposta = resposta.data
-	print "Resposta recebida => " + str (resposta)
-	if resposta.count("um")==1:
+	if resposta.count("comando_1")==1:
 		tarefa = 1
-	if resposta.count("dois")==2:
+	if resposta.count("comando_2")==1:
 		tarefa = 2
-	if resposta.count("caixa")==3:
+	if resposta.count("caixa_grande")==1:
 		caixa = True
+		print "Reconheci uma caixa grande pela imagem"
+	if resposta.count("caixa_pequena")==1:
+		caixa = True
+		print "Reconheci uma caixa pequena pela imagem"
 			
 
 def getxy (odom):
@@ -263,17 +266,19 @@ r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 sended = False
 while tarefa ==3:
-	if (distancia != None and min (distancia) < 120 and min (distancia) > 25):
-		print "Detectada imagem com comando"
+	if (distancia != None and min (distancia) < 100 and min (distancia) > 5):
+		print "Detectado um obstáculo"
 		psound.publish (Sound.ON)
 		file_name="imagem"+str(contador_imagem)+".jpg"
+		cont +=1
 		os.system("python take_photo.py " + str (file_name))
 		os.system("python client.py " + str(file_name))
 		break
 	print "Aguardando alguem passar na frente para dá o comando"
 	r.sleep()
 
-print "Saiu do loop"
+print "Saiu do loop com o comando " + str (tarefa)
+
 
 if robot_id != 1:
 	print "Esperando indicacao do mestre"
@@ -293,16 +298,19 @@ else:
 				if tarefa == 2 :
 					resp = "s"
 					goto.publish(resp)
-				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
-
-					tamanho = get_size(distancia, min (distancia))
-#				print "Achou um obstaculo com tamnaho = " + str (tamanho)
-					if tamanho > 60:
-#					print "çaporra eh grande, vou chamar o outro"
+				if (distancia != None and min (distancia) < 200 and min (distancia) > 25 ):
+					if sended==False:
+						sended = True
+						file_name="imagem"+str(contador_imagem)+".jpg"
+						cont +=1
+						os.system("python take_photo.py " + str (file_name))
+						os.system("python client.py " + str(file_name))
+						tamanho = get_size(distancia, min (distancia))
 						print "Tamanho do obstáculo:"+str (tamanho) + "\nDistância até obstáculo" + str(min(distancia))
-						resp = "n"
-						goto.publish(resp)
-						psound.publish (Sound.ON)
+						if tamanho > 60:
+							resp = "n"
+							goto.publish(resp)
+							psound.publish (Sound.ON)
 					t.angular.z = 0
 					t.linear.x = 0
 					p.publish(t)
@@ -310,7 +318,6 @@ else:
 				x, y , mx, my, mz = getDataFromRos()
 				x, y, z = points[cont]
 				lin,ang  = algoritmo.start(x, y, z, mx, my, mz)
-				print str (lin) + " : " + str(ang)
 				if (lin == 0 and ang == 0):
 					cont= (cont + 1)%len (points)
 					print ("Chegamos ao ponto " + str (cont) )

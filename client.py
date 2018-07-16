@@ -1,11 +1,12 @@
+# -*- coding: utf-8 -*-
 import time
 import socket
 import sys
 import rospy
 from std_msgs.msg import String
 #HOST = '127.0.0.1'     # Endereco IP do Servidor
-HOST = '150.165.138.191'     # Endereco IP do Servidor
-PORT = 5001            # Porta que o Servidor esta
+HOST = '150.165.138.49'     # Endereco IP do Servidor
+PORT = 5000            # Porta que o Servidor esta
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 dest = (HOST, PORT)
 tcp.connect(dest)
@@ -37,6 +38,7 @@ rospy.init_node ("client_deep_learning")
 r = rospy.Rate(6)
 p = rospy.Publisher("answer", String)
 
+print "\n\n A saída exata de virginia foi: " + str (x) + "\n"
 
 for i in range (10):
 	p.publish(str(x))
