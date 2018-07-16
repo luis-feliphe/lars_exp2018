@@ -20,6 +20,7 @@ import time
 import datetime
 ####
 import numpy
+from kobuki_msgs.msg import Sound
 from tf.transformations import euler_from_quaternion
 import tf
 import struct
@@ -28,7 +29,7 @@ from sensor_msgs.msg import LaserScan
 getTime = lambda: int(round(time.time() * 1000))
 
 import math
-RATE=1
+RATE=10
 
 global posicao
 posicao = None
@@ -103,13 +104,14 @@ def get_size (vector, menor_distancia):
 
 
 def get_distance(scan):
-	global distancia 
-	distancia = list (scan.ranges)
-	for n, i in enumerate (distancia):
+	temp = list (scan.ranges)
+	for n, i in enumerate (temp):
 		if math.isnan(i):
-			distancia[n] = 3
-	for i in range (0,len(distancia)):
-		distancia[i] = round (distancia[i] * 100,1)
+			temp[n] = 3
+	for i in range (0,len(temp)):
+		temp[i] = round (temp[i] * 100,1)
+	global distancia
+	distancia = temp 
 #	print "\n\n" + str (scan.ranges)
 #	print "Angulo inicial  " + str(scan.angle_min) + " Angulo final " + str(scan.angle_max) + " intervalo de  "+ str(scan.angle_increment) + "Tamanho " + str (len (scan.ranges))
 #	print "distancia minima " + str(scan.range_min) + " distancia maxima " + str(scan.range_max) + "ranges "+ str(distancia)
@@ -142,6 +144,7 @@ def get_answer (resposta):
 	global tarefa
 	global caixa
 	resposta = resposta.data
+	print "Resposta recebida => " + str (resposta)
 	if resposta.count("um")==1:
 		tarefa = 1
 	if resposta.count("dois")==2:
@@ -218,14 +221,15 @@ if robot_id == 2:
 	rospy.Subscriber("/goto", String, goto)
 else: 
 	rospy.init_node("control_r"+str(robot_id))
-	#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
-	rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos)
+	rospy.Subscriber("/robot_0/odom", Odometry, get_pos)
+	#rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos)
 	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
-	rospy.Subscriber("/robot_0/base_scan", LaserScan, get_distance)
+	rospy.Subscriber("/robot_0/scan", LaserScan, get_distance)
 	#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
-	rospy.Subscriber("/robot_0/answer_deep_learning", String, get_answer)
+	rospy.Subscriber("/robot_0/answer", String, get_answer)
 	global p
-	p = rospy.Publisher("/robot_0/cmd_vel", Twist)
+#	p = rospy.Publisher("/robot_0/cmd_vel", Twist)
+	p = rospy.Publisher("/robot_0/cmd_vel_mux/input/teleop", Twist)
 	goto = rospy.Publisher("/goto", String) #send message to the slave
 	psound = rospy.Publisher("/mobile_base/commands/sound", Sound) #send message to the slave
 
@@ -240,7 +244,7 @@ u = 1.5
 #################
 #points = [(2,2,90), (0,2,0)]
 points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
-points = [(2, 2, 90), (0.2,2,90)]
+#points = [(2, 2, 90), (0.2,2,90)]
 
 #points = [(0, -u)]
 cont = 0
@@ -258,22 +262,18 @@ contador_imagem = 1
 r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 sended = False
-while True:
-	if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
+while tarefa ==3:
+	if (distancia != None and min (distancia) < 120 and min (distancia) > 25):
 		print "Detectada imagem com comando"
 		psound.publish (Sound.ON)
 		file_name="imagem"+str(contador_imagem)+".jpg"
 		os.system("python take_photo.py " + str (file_name))
 		os.system("python client.py " + str(file_name))
 		break
+	print "Aguardando alguem passar na frente para dá o comando"
 	r.sleep()
 
-
-while tarefa == 3:
-	r.sleep()
-
-psound.publish (Sound.ON)
-
+print "Saiu do loop"
 
 if robot_id != 1:
 	print "Esperando indicacao do mestre"
@@ -283,7 +283,7 @@ else:
 
 	try:
 		algoritmo = Controlo()
-		print "\n"
+		print "Iniciando busca pela caixa"
 
 			
 		while not rospy.is_shutdown():
@@ -294,9 +294,12 @@ else:
 					resp = "s"
 					goto.publish(resp)
 				if (distancia != None and min (distancia) < 200 and min (distancia) > 25):
+
 					tamanho = get_size(distancia, min (distancia))
+#				print "Achou um obstaculo com tamnaho = " + str (tamanho)
 					if tamanho > 60:
-						print "TAMANHO = "+str (tamanho)
+#					print "çaporra eh grande, vou chamar o outro"
+						print "Tamanho do obstáculo:"+str (tamanho) + "\nDistância até obstáculo" + str(min(distancia))
 						resp = "n"
 						goto.publish(resp)
 						psound.publish (Sound.ON)
@@ -307,6 +310,7 @@ else:
 				x, y , mx, my, mz = getDataFromRos()
 				x, y, z = points[cont]
 				lin,ang  = algoritmo.start(x, y, z, mx, my, mz)
+				print str (lin) + " : " + str(ang)
 				if (lin == 0 and ang == 0):
 					cont= (cont + 1)%len (points)
 					print ("Chegamos ao ponto " + str (cont) )
@@ -317,6 +321,7 @@ else:
 				t.angular.z = ang
 				t.linear.x = lin
 				p.publish(t)
+				distancia = None
 
 	except Exception :
 		raise	

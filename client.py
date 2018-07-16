@@ -1,10 +1,11 @@
+import time
 import socket
 import sys
 import rospy
 from std_msgs.msg import String
 #HOST = '127.0.0.1'     # Endereco IP do Servidor
-HOST = '150.165.138.49'     # Endereco IP do Servidor
-PORT = 5000            # Porta que o Servidor esta
+HOST = '150.165.138.191'     # Endereco IP do Servidor
+PORT = 5001            # Porta que o Servidor esta
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 dest = (HOST, PORT)
 tcp.connect(dest)
@@ -23,15 +24,23 @@ tcp.send("EndOF")
 #print "------------\n+++++  Recebendo Resposta ++++\n------------"
 x = tcp.recv(512)
 
-print ("\n\t => Resultado = " + str (x))
+#print ("\n\t => Resultado = " + str (x))
 
 tcp.close()
 #print "\nConection Closed."
 
 
-
+time.sleep(2)
+print "\n\nAcordando ... \n"
 # Enviando resposta     
 rospy.init_node ("client_deep_learning")
-p = rospy.Publisher("robot_0/answer_deep_learning", String)
-p.publish(str(x))
+r = rospy.Rate(6)
+p = rospy.Publisher("answer", String)
+
+
+for i in range (10):
+	p.publish(str(x))
+	r.sleep()
+
+
 
