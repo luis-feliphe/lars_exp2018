@@ -163,45 +163,48 @@ def getxy (odom):
 def goto(value):
 #points = [(0, -2, 0), (2,-2,90), (2,2,90), (0,2,0)]
 	global robot_id
+	global r
 	if robot_id != 1:
-		while True:
-			if hasMasterPos():
-				break
-#		orientation, x,y,z = str(value.data).split(":")
-		orientation = str(value.data)
-		
-#		x_r = float (x)
-#		y_r = float (y)
-#		z_r = float (z)
-		if hasMasterPos():
-			x_r, y_r, z_r = getMasterPos()
-		distance = 0.75
-		if orientation == "n":
-			x_r += distance
-		elif orientation == "s":
-			x_r += distance
-		elif orientation == "l":
-			y_r -= distance
-		elif orientation == "o":
-			y_r += distance
+		print "\nRecebeu o goto \n"
+		while not hasMasterPos():
+			print "Esperando posicao do mestre"
+			r.sleep()
+			break
+#		orientation = str(value.data)
+#		if hasMasterPos():
+#			x_r, y_r, z_r = getMasterPos()
+#		distance = 0.75
+#		if orientation == "n":
+#			x_r += distance
+#		elif orientation == "s":
+#			x_r += distance
+#		elif orientation == "l":
+#			y_r -= distance
+#		elif orientation == "o":
+#			y_r += distance
 		
 		algoritmo = Controlo()
 		global master
 		while True:
+			cont = 0
 			if hasDataToWalk() and master != None:
 				global contPontos
 				global p
 				x, y , mx, my, mz = getDataFromRos()
 				x_r, y_r, z_r = getMasterPos()
-				x_r -= 0.75
-				y_r -= 0.75
+				x_r -= 0.45
+#				y_r -= 0.50
 				t= Twist()
 				lin,ang  = algoritmo.start(x_r ,y_r , z_r, mx, my, mz)
 				t.angular.z = ang
 				t.linear.x = lin
+				print "publicando o valor" + str (ang) + " : " + str(lin) + " e indo para " + str (x_r) + " : " + str(y_r)
 				p.publish(t)
 				if (lin == 0 and ang == 0):
-					break
+					cont += 1
+					if (cont>20):
+						break
+			r.sleep()
 
 #############
 # ROS SETUP #
@@ -212,15 +215,17 @@ robot_id = sys.argv[1]
 print "ROBOT ID = "+str (robot_id)
 robot_id = int (robot_id)
 
+global r
 if robot_id == 2:
 	rospy.init_node("control_r"+str(robot_id))
-	rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos_master)
-	#rospy.Subscriber("robot_"+str(robot_id)+"/odom", Odometry, get_pos)
-	rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
+	#rospy.Subscriber("/robot_0/base_pose_ground_truth", Odometry, get_pos_master)
+	rospy.Subscriber("/robot_0/odom" , Odometry, get_pos_master)
+	rospy.Subscriber("/robot_1/odom" , Odometry, get_pos)
+#	rospy.Subscriber("/robot_1/base_pose_ground_truth", Odometry, get_pos)
 	#rospy.Subscriber("robot_"+str(robot_id)+"/scan", LaserScan, get_distance)
 	rospy.Subscriber("/robot_1/base_scan", LaserScan, get_distance)
 	#p = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist)
-	p = rospy.Publisher("/robot_1/cmd_vel", Twist)
+	p = rospy.Publisher("/robot_1/cmd_vel_mux/input/teleop", Twist)
 	rospy.Subscriber("/goto", String, goto)
 else: 
 	rospy.init_node("control_r"+str(robot_id))
@@ -257,7 +262,7 @@ posInicialy=0
 
 global tarefa
 tarefa = 3 #1 - 1 robô\ 2 - 2 robôs \ 3 - esperando comand
-ask_for_help = False
+
 global caixa 
 caixa = False
 contador_imagem = 1
@@ -265,17 +270,18 @@ contador_imagem = 1
 r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 sended = False
-while tarefa ==3:
-	if (distancia != None and min (distancia) < 100 ):
-		file_name="imagem"+str(contador_imagem)+".jpg"
-		cont +=1
-		os.system("python take_photo.py " + str (file_name))
-		psound.publish (Sound.ON)
-		print "Detectado um obstáculo"
-		os.system("python client.py " + str(file_name))
-		break
-	print "Aguardando alguem passar na frente para dá o comando"
-	r.sleep()
+if robot_id == 1:
+	while tarefa ==3:
+		if (distancia != None and min (distancia) < 100 ):
+			file_name="imagem"+str(contador_imagem)+".jpg"
+			cont +=1
+			os.system("python take_photo.py " + str (file_name))
+			psound.publish (Sound.ON)
+			print "Detectado um obstáculo"
+			os.system("python client.py " + str(file_name))
+			break
+		print "Aguardando alguem passar na frente para dá o comando"
+		r.sleep()
 
 print "Saiu do loop com o comando " + str (tarefa)
 
