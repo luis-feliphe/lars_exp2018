@@ -234,7 +234,7 @@ else:
 #	p = rospy.Publisher("/robot_0/cmd_vel", Twist)
 	p = rospy.Publisher("/robot_0/cmd_vel_mux/input/teleop", Twist)
 	goto = rospy.Publisher("/goto", String) #send message to the slave
-	psound = rospy.Publisher("/mobile_base/commands/sound", Sound) #send message to the slave
+	psound = rospy.Publisher("/robot_0/mobile_base/commands/sound", Sound) #send message to the slave
 
 
 
@@ -257,7 +257,7 @@ posInicialy=0
 
 global tarefa
 tarefa = 3 #1 - 1 robô\ 2 - 2 robôs \ 3 - esperando comand
-
+ask_for_help = False
 global caixa 
 caixa = False
 contador_imagem = 1
@@ -266,12 +266,12 @@ r = rospy.Rate(RATE) # 5hz
 #### Iniciando o loop principal ######
 sended = False
 while tarefa ==3:
-	if (distancia != None and min (distancia) < 100 and min (distancia) > 5):
-		print "Detectado um obstáculo"
-		psound.publish (Sound.ON)
+	if (distancia != None and min (distancia) < 100 ):
 		file_name="imagem"+str(contador_imagem)+".jpg"
 		cont +=1
 		os.system("python take_photo.py " + str (file_name))
+		psound.publish (Sound.ON)
+		print "Detectado um obstáculo"
 		os.system("python client.py " + str(file_name))
 		break
 	print "Aguardando alguem passar na frente para dá o comando"
@@ -279,6 +279,7 @@ while tarefa ==3:
 
 print "Saiu do loop com o comando " + str (tarefa)
 
+distancia = None
 
 if robot_id != 1:
 	print "Esperando indicacao do mestre"
@@ -295,10 +296,12 @@ else:
 			if hasDataToWalk():
 				t= Twist()
 				global distancia
-				if tarefa == 2 :
+				if tarefa == 2 and not ask_for_help :
 					resp = "s"
 					goto.publish(resp)
-				if (distancia != None and min (distancia) < 200 and min (distancia) > 25 ):
+					ask_for_help = True
+					print "pediu ajuda"
+				if (distancia != None and min (distancia) < 160 and min (distancia) > 25 ):
 					if sended==False:
 						sended = True
 						file_name="imagem"+str(contador_imagem)+".jpg"
