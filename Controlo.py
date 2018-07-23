@@ -14,8 +14,8 @@ import math
 class Controlo :
 	def __init__ (self):
 		#real turtlebot
-		self.VEL_MAX= 0.1
-		self.VEL_MAX_ANG=0.75
+		self.VEL_MAX= 0.11
+		self.VEL_MAX_ANG=0.80
 		#to simulation
 #		self.VEL_MAX= 0.4
 #		self.VEL_MAX_ANG=0.2
@@ -33,9 +33,9 @@ class Controlo :
 	def walkon(self):
 		return self.VEL_MAX, 0 #linear and angular modificado 1
 	def walkright(self):
-		return 0.01, -self.VEL_MAX_ANG #linear and angular modificado -0.5
+		return 0.001, -self.VEL_MAX_ANG #linear and angular modificado -0.5
 	def walkleft(self):
-		return 0.01, self.VEL_MAX_ANG#linear and angular modificado 0.5
+		return 0.001, self.VEL_MAX_ANG#linear and angular modificado 0.5
 	def walkhorario(self):
 		return 0.04, -self.VEL_MAX_ANG #linear and angular modificado -0.5
 	def walkantihorario(self):
@@ -46,13 +46,13 @@ class Controlo :
 		self.myTarget = (self.myTarget + 1) % (len (self.targets))
 #Walking and redirecting
 	def walkhorarioon(self, vel):
-		return 0.01, -self.VEL_MAX_ANG #linear and angular modificado -0.5
+		return 0.001, -self.VEL_MAX_ANG #linear and angular modificado -0.5
 	def walkantihorarioon(self, vel):
-		return 0.01, self.VEL_MAX_ANG #linear and angular modificado 0.5
+		return 0.001, self.VEL_MAX_ANG #linear and angular modificado 0.5
 	def walkonhorario(self):
-		return self.VEL_MAX, -0.1 #linear and angular modificado 0.5
+		return self.VEL_MAX, -0.01 #linear and angular modificado 0.5
 	def walkonantihorario(self):
-		return self.VEL_MAX, 0.1 #linear and angular modificado 0.5
+		return self.VEL_MAX, 0.01 #linear and angular modificado 0.5
 
 
 
@@ -111,7 +111,7 @@ class Controlo :
 		x, y ,z = self.whereImGoing()
 		mx, my, mz = self.myPosition()
 		# Distancia original = 0.3
-		if ((math.hypot(x-mx, y-my))< 0.25):
+		if ((math.hypot(x-mx, y-my))< 0.10):
 		        return True
 		return False
 
@@ -170,7 +170,7 @@ class Controlo :
 			#muito Orientado
 			a = max ([mz, z])
 			b = min ([mz, z])
-			if (int (mz) == int (z)or (a -b <15)):
+			if (int (mz) == int (z)or (a -b <5)):
                         	return 0,0
 
 			if ((z-mz)>= 0):
